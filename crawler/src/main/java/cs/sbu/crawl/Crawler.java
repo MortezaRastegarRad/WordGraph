@@ -1,81 +1,72 @@
 package cs.sbu.crawl;
 
+import cs.sbu.config.KafkaConfig;
 import cs.sbu.connection.RedisConnection;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import java.util.ArrayList;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 public class Crawler implements Runnable {
 
     RedisConnection redisConnection;
-    ArrayBlockingQueue<String> arrayBlockingQueue;
-    ArrayList<String> checked;
+    KafkaConsumer consumer;
+    KafkaProducer producer;
+    KafkaProducer producerText;
     private static final Logger LOGGER = Logger.getLogger(Crawler.class);
+    KafkaConfig kafkaConfig = new KafkaConfig();
 
-
-    public Crawler(ArrayBlockingQueue arrayBlockingQueue, RedisConnection redisConnection, ArrayList<String> checked) {
-        this.arrayBlockingQueue = arrayBlockingQueue;
+    public Crawler(KafkaProducer producer, KafkaConsumer consumer, RedisConnection redisConnection, KafkaProducer producerText) throws IOException {
+        this.producer = producer;
+        this.producerText = producerText;
         this.redisConnection = redisConnection;
-        this.checked = checked;
+        this.consumer = consumer;
     }
 
     @Override
     public void run() {
-        while (arrayBlockingQueue.size() > 0) {
+        while (true) {
             System.out.println(Thread.currentThread().getName());
-            String url = null;
+            ConsumerRecords record = record = consumer.poll(100);
+            String url = record.toString();
             try {
-                url = arrayBlockingQueue.take();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }//TODO:  !redisConnection.isExist(url)
-            if (!checked.contains(url)) {
-                Document doc = null;
-                try {
-                    doc = Jsoup.connect(url).timeout(20000).get();
-                    Elements links = doc.select("a[href]");
-                    Thread newThread = new Thread(new addToQueue(links,arrayBlockingQueue));
-                    newThread.start();
-//                    TODO:redisConnection.setEntity(url);
-                } catch (Exception e) {
-                    System.out.println(e.toString());
+                if (!redisConnection.isExist(getDomainName(url))) {
+                    Document doc = null;
+                    try {
+                        doc = Jsoup.connect(url).get();
+                        Elements links = doc.select("a[href]");
+                        for (Element link : links) {
+                            this.producer.send(new ProducerRecord<Long, String>(kafkaConfig.getProperty("TOPIC_NAME"), link.attr("abs:href")));
+                        }
+                        producer.flush();
+                        redisConnection.setEntity(getDomainName(url));
+                    } catch (Exception e) {
+                        System.out.println(e.toString());
+                    }
+                    this.producerText.send(new ProducerRecord<Long, String>(kafkaConfig.getProperty("TOPIC_NAME_text"), doc.text()));
                 }
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
             }
             System.out.println("url : " + url);
             System.out.println("_____________________________________________________________________________________");
         }
     }
-}
 
-class addToQueue implements Runnable {
-    Elements links;
-    ArrayBlockingQueue arrayBlockingQueue;
-
-    addToQueue(Elements links, ArrayBlockingQueue arrayBlockingQueue) {
-        this.links = links;
-        this.arrayBlockingQueue = arrayBlockingQueue;
-    }
-
-    public void run() {
-        try {
-            add(this.links);
-        } catch (InterruptedException e) {
-            System.out.println("salam dada");
-        }
-    }
-
-    void add(Elements links) throws InterruptedException {
-        System.out.println(arrayBlockingQueue.size());
-        for (Element link : links) {
-            arrayBlockingQueue.offer(link.attr("abs:href"), 3, TimeUnit.SECONDS);
-
-            System.out.println(link.attr("abs:href"));
-        }
+    public static String getDomainName(String url) throws URISyntaxException {
+        URI uri = new URI(url);
+        String domain = uri.getHost();
+        return domain.startsWith("www.") ? domain.substring(4) : domain;
     }
 }
+
+
