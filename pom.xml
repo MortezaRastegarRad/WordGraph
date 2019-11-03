@@ -12,6 +12,7 @@
         <module>crawler</module>
         <module>process</module>
         <module>process</module>
+        <module>Graph</module>
     </modules>
 
     <dependencies>

@@ -14,6 +14,7 @@ import java.util.Arrays;
 
 
 public class Processig implements Runnable {
+
     KafkaConsumer consumerText;
     KafkaProducer producerWord;
     KafkaConfig kafkaConfig;
