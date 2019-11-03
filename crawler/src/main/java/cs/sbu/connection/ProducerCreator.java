@@ -1,6 +1,8 @@
 package cs.sbu.connection;
 
 import cs.sbu.config.KafkaConfig;
+import cs.sbu.crawl.Text;
+import cs.sbu.crawl.Url;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -23,7 +25,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 
 public class ProducerCreator {
 
-    public static KafkaProducer<Long, String> createProducer() throws IOException {
+    public static KafkaProducer createProducer(String s) throws IOException {
         Properties properties = new Properties();
         KafkaConfig conf = new KafkaConfig();
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, conf.getProperty("KAFKA_BROKERS"));
@@ -31,7 +33,14 @@ public class ProducerCreator {
 
         properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, LongSerializer.class.getName());
         properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        switch (s) {
+            case "url":
+                return new KafkaProducer<Long, Url>(properties);
+            case "text":
+                return new KafkaProducer<Long, Text>(properties);
+            default:
+                return new KafkaProducer<Long, String>(properties);
+        }
 
-        return new KafkaProducer<Long, String>(properties);
     }
 }
