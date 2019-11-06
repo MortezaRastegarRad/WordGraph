@@ -34,18 +34,19 @@ public class Processig implements Runnable {
                 text = (Text) record;
             }
             assert text != null;
-            process(text.getText(), producerWord, text.getId());
+            process(text.getText(), producerWord, text.getId(), text.getRelations());
         }
     }
 
-    void process(String text, KafkaProducer producerWord, long id) {
+    void process(String text, KafkaProducer producerWord, long id, ArrayList<Long> relations) {
         CooccurrenceKeywordExtractor ex = new CooccurrenceKeywordExtractor();
-        ArrayList<NGram> extract = ex.extract(text);
+        ArrayList<NGram> extract_words = ex.extract(text);
         ArrayList<String> words = new ArrayList<>();
-        for (int i = 0; i < extract.size(); i++) {
-            words.add(Arrays.toString(extract.get(i).words));
+        for (int i = 0; i < extract_words.size(); i++) {
+            words.add(Arrays.toString(extract_words.get(i).words));
         }
-        Word word = new Word(words, id);
+        Word word = new Word(words, id, relations);
+
         producerWord.send(new ProducerRecord<Long, Word>(this.kafkaConfig.getProperty("TOPIC_NAME_WORD"), word));
     }
 }

@@ -5,6 +5,13 @@ import java.util.ArrayList;
 public class Word {
     private ArrayList<String> words;
     private long id;
+    private ArrayList<Long> relations;
+
+    public Word(ArrayList<String> words, long id, ArrayList<Long> relations) {
+        this.words = words;
+        this.id = id;
+        this.relations = relations;
+    }
 
     public ArrayList<String> getWords() {
         return words;
@@ -22,8 +29,11 @@ public class Word {
         this.id = id;
     }
 
-    public Word(ArrayList<String> words, long id) {
-        this.words = words;
-        this.id = id;
+    public ArrayList<Long> getRelations() {
+        return relations;
+    }
+
+    public void setRelations(ArrayList<Long> relations) {
+        this.relations = relations;
     }
 }
