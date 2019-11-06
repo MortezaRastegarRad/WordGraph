@@ -36,4 +36,11 @@ public class Word {
     public void setRelations(ArrayList<Long> relations) {
         this.relations = relations;
     }
+
+    @Override
+    public String toString() {
+
+        return this.getWords().toString() + "_&#&_" + this.getId() + "_&#&_" + this.getRelations().toString();
+    }
+
 }

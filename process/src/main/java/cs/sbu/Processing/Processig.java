@@ -1,6 +1,7 @@
 package cs.sbu.Processing;
 
 import cs.sbu.config.KafkaConfig;
+import cs.sbu.connection.SqlConnection;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -12,12 +13,17 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import java.sql.*;
+
 
 public class Processig implements Runnable {
 
     KafkaConsumer consumerText;
     KafkaProducer producerWord;
     KafkaConfig kafkaConfig;
+    Connection conn = null;
+    SqlConnection sql = new SqlConnection(conn);
+
 
     public Processig(KafkaProducer producerWord, KafkaConsumer consumerText) throws IOException {
         this.kafkaConfig = new KafkaConfig();
@@ -34,11 +40,15 @@ public class Processig implements Runnable {
                 text = (Text) record;
             }
             assert text != null;
-            process(text.getText(), producerWord, text.getId(), text.getRelations());
+            try {
+                process(text.getText(), producerWord, text.getId(), text.getRelations());
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
-    void process(String text, KafkaProducer producerWord, long id, ArrayList<Long> relations) {
+    void process(String text, KafkaProducer producerWord, long id, ArrayList<Long> relations) throws SQLException {
         CooccurrenceKeywordExtractor ex = new CooccurrenceKeywordExtractor();
         ArrayList<NGram> extract_words = ex.extract(text);
         ArrayList<String> words = new ArrayList<>();
@@ -46,7 +56,8 @@ public class Processig implements Runnable {
             words.add(Arrays.toString(extract_words.get(i).words));
         }
         Word word = new Word(words, id, relations);
-
-        producerWord.send(new ProducerRecord<Long, Word>(this.kafkaConfig.getProperty("TOPIC_NAME_WORD"), word));
+        synchronized (sql) {
+            sql.Insert(words , id, relations, conn);
+        }
     }
 }
